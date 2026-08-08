@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 *)",
+      "Bash(pip show *)",
+      "Bash(pip install *)",
+      "Bash(curl *)",
+      "Bash(claude mcp *)"
+    ]
+  }
+}

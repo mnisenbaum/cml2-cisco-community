@@ -1,0 +1,31 @@
+meta {
+  name: 02 - Criar lab
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{base_url}}/labs
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "title": "{{lab_title}}",
+    "description": "Lab de validacao da Etapa 2 (Bruno) -- criado pela colecao, removido ao final."
+  }
+}
+
+script:post-response {
+  bru.setVar("lab_id", res.body.id);
+}
+
+assert {
+  res.status: eq 200
+}

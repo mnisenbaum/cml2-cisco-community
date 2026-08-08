@@ -1,0 +1,31 @@
+meta {
+  name: 07 - Interfaces de R1
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{base_url}}/labs/{{lab_id}}/nodes/{{r1_id}}/interfaces?data=true&operational=false
+  body: none
+  auth: none
+}
+
+params:query {
+  data: true
+  operational: false
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+script:post-response {
+  const byLabel = {};
+  res.body.forEach((iface) => { byLabel[iface.label] = iface.id; });
+  bru.setVar("r1_eth00", byLabel["Ethernet0/0"]);
+  bru.setVar("r1_eth01", byLabel["Ethernet0/1"]);
+}
+
+assert {
+  res.status: eq 200
+}

@@ -1,0 +1,22 @@
+hostname R2
+no ip domain lookup
+!
+interface Loopback0
+ ip address 2.2.2.2 255.255.255.0
+ ip ospf 1 area 0
+!
+interface Ethernet0/0
+ ip address 10.1.2.2 255.255.255.0
+ no shutdown
+ ip ospf 1 area 0
+!
+interface Ethernet0/1
+ ip address 10.2.3.2 255.255.255.0
+ no shutdown
+ ip ospf 1 area 0
+!
+router ospf 1
+ router-id 2.2.2.2
+ passive-interface Loopback0
+!
+end

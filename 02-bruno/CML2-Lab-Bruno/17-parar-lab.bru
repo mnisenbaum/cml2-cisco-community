@@ -1,0 +1,19 @@
+meta {
+  name: 17 - Parar lab (limpeza)
+  type: http
+  seq: 17
+}
+
+put {
+  url: {{base_url}}/labs/{{lab_id}}/stop
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+assert {
+  res.status: eq 204
+}

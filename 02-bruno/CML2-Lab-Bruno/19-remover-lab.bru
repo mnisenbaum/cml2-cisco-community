@@ -1,0 +1,19 @@
+meta {
+  name: 19 - Remover lab (limpeza)
+  type: http
+  seq: 19
+}
+
+delete {
+  url: {{base_url}}/labs/{{lab_id}}
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+assert {
+  res.status: eq 204
+}

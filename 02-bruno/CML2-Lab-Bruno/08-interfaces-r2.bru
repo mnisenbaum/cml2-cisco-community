@@ -1,0 +1,31 @@
+meta {
+  name: 08 - Interfaces de R2
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{base_url}}/labs/{{lab_id}}/nodes/{{r2_id}}/interfaces?data=true&operational=false
+  body: none
+  auth: none
+}
+
+params:query {
+  data: true
+  operational: false
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+script:post-response {
+  const byLabel = {};
+  res.body.forEach((iface) => { byLabel[iface.label] = iface.id; });
+  bru.setVar("r2_eth00", byLabel["Ethernet0/0"]);
+  bru.setVar("r2_eth01", byLabel["Ethernet0/1"]);
+}
+
+assert {
+  res.status: eq 200
+}

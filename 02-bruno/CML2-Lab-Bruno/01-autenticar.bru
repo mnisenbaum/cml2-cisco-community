@@ -1,0 +1,30 @@
+meta {
+  name: 01 - Autenticar
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{base_url}}/authenticate
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "username": "{{cml_username}}",
+    "password": "{{cml_password}}"
+  }
+}
+
+script:post-response {
+  bru.setVar("token", res.body);
+}
+
+assert {
+  res.status: eq 200
+}

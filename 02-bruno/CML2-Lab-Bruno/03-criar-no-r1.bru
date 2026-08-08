@@ -1,0 +1,38 @@
+meta {
+  name: 03 - Criar no R1
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{base_url}}/labs/{{lab_id}}/nodes?populate_interfaces=true
+  body: json
+  auth: none
+}
+
+params:query {
+  populate_interfaces: true
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "label": "R1",
+    "node_definition": "iol-xe",
+    "x": -440,
+    "y": -120,
+    "configuration": "hostname R1\nno ip domain lookup\n!\ninterface Loopback0\n ip address 1.1.1.1 255.255.255.0\n ip ospf 1 area 0\n!\ninterface Ethernet0/0\n ip address 10.1.2.1 255.255.255.0\n no shutdown\n ip ospf 1 area 0\n!\ninterface Ethernet0/1\n ip address 10.1.4.1 255.255.255.0\n no shutdown\n ip ospf 1 area 0\n!\nrouter ospf 1\n router-id 1.1.1.1\n passive-interface Loopback0\n!\nend\n"
+  }
+}
+
+script:post-response {
+  bru.setVar("r1_id", res.body.id);
+}
+
+assert {
+  res.status: eq 200
+}

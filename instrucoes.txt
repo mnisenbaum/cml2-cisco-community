@@ -1,0 +1,9 @@
+Instruções:
+1) IP dos links entre roteadores: 10.x.y.0/24
+onde: x < y são os números dos roteadores.
+A parte de host é o número do roteador.
+Exemplo: R2 <--> R3 = 10.2.3.2 <--> 10.2.3.3
+2) Uma interface loopback L0 em cada roteador:
+x.x.x.x/24 com x igual ao número do roteador
+Exemplo: L0 de R4 = 4.4.4.4/24
+3) OSPF area 0 rodando em todos roteadores anunciando todas interfaces.

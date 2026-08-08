@@ -1,0 +1,19 @@
+meta {
+  name: 18 - Wipe do lab (limpeza)
+  type: http
+  seq: 18
+}
+
+put {
+  url: {{base_url}}/labs/{{lab_id}}/wipe
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+}
+
+assert {
+  res.status: eq 204
+}

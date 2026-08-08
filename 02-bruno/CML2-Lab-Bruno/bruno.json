@@ -1,0 +1,9 @@
+{
+  "version": "1",
+  "name": "CML2 Lab - Etapa 2 (Bruno)",
+  "type": "collection",
+  "ignore": [
+    "node_modules",
+    ".git"
+  ]
+}

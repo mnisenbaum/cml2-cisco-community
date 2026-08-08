@@ -1,0 +1,27 @@
+meta {
+  name: 14 - Link R4 Ethernet0/1 -- R1 Ethernet0/1
+  type: http
+  seq: 14
+}
+
+post {
+  url: {{base_url}}/labs/{{lab_id}}/links
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{token}}
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "src_int": "{{r4_eth01}}",
+    "dst_int": "{{r1_eth01}}"
+  }
+}
+
+assert {
+  res.status: eq 200
+}

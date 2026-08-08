@@ -1,0 +1,18 @@
+# Credenciais -- nunca commitar. Copie .env.example para .env e preencha localmente.
+.env
+
+# Artefatos do WSL/Windows (metadado de zona de seguranca em arquivos baixados)
+*:Zone.Identifier
+
+# Python
+__pycache__/
+*.pyc
+
+# Terraform (repetido aqui por seguranca; 06-terraform/.gitignore ja cobre o essencial)
+**/.terraform/
+**/terraform.tfstate
+**/terraform.tfstate.backup
+**/*.tfvars
+
+# Editores/SO
+.DS_Store
