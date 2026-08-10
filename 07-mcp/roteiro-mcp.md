@@ -6,6 +6,8 @@ Todos os métodos anteriores (Bruno, bash, PowerShell, Python requests, Python S
 
 Não é criado um script/gabarito de código aqui — o "gabarito" deste método é o **prompt** e o **registro do servidor MCP**, documentados abaixo.
 
+> ⚠️ Ver aviso de segurança no README sobre o uso de `Basic <base64>` neste método.
+
 ## O que é o MCP do CML2
 
 O controller expõe um servidor MCP embutido (desde a versão usada aqui — 3.2.4). Ele não precisa de nenhuma instalação separada no lado do CML2: é só uma URL (`/mcp`) que fala o protocolo [MCP](https://modelcontextprotocol.io/) sobre HTTP, autenticada com as mesmas credenciais da API REST.
