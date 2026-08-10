@@ -18,6 +18,16 @@ Os 7 métodos avançam em ordem deliberada, de mais manual para mais automatizad
 | 6 | [Terraform](06-terraform/roteiro-terraform.md) | De imperativo para declarativo — descreve o resultado desejado, não a sequência de passos |
 | 7 | [MCP](07-mcp/roteiro-mcp.md) | Criar a topologia pedindo em linguagem natural a um assistente de IA conectado ao CML2 via MCP |
 
+
+> [!WARNING]
+> **Autenticação do método 7 (MCP) não é adequada para produção.** O roteiro usa `Basic <base64 de usuario:senha>` como header `X-Authorization`, passado via variável de ambiente (`CML_AUTH_HEADER`) na configuração do cliente MCP. Base64 **não é criptografia** — é uma codificação reversível; qualquer pessoa com acesso ao processo, ao histórico de shell, ou ao arquivo de configuração do cliente (`~/.claude.json`, `opencode.json`, `claude_desktop_config.json`, `cline_mcp_settings.json`, etc.) consegue decodificar a senha em texto puro. Isso é aceitável para um lab local isolado — não para um controller de produção.
+>
+> Em produção, evite credenciais fixas em arquivos de configuração. Prefira:
+> - Segredos vindos de um `.env` não commitado, ou de um gerenciador de segredos (Vault, AWS Secrets Manager, etc.) — como já é feito nos métodos 1-6 deste repositório.
+> - Tokens de curta duração obtidos via `/api/v0/authenticate` e renovados periodicamente, em vez de credenciais fixas embutidas na config.
+> - Controle de acesso de rede (o `/mcp` não deveria estar exposto além da rede de administração do controller).
+
+
 Cada roteiro (a partir do método manual) inclui uma seção **"Prompt sugerido para o chatbot"**, para o aluno gerar seu próprio script/coleção com um assistente de IA e comparar com o gabarito testado deste repositório.
 
 ## Topologia de referência
