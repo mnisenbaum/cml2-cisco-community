@@ -7,6 +7,7 @@
 # console/GUI antes de rodar a limpeza (ver roteiro-linha-de-comando.md).
 set -euo pipefail
 
+# 1. Configuração e Dependências: Carrega as variáveis de ambiente e define caminhos
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 CONFIG_DIR="$REPO_ROOT/01-manual/respostas-configuracao"
@@ -14,6 +15,7 @@ ENV_FILE="$REPO_ROOT/.env"
 
 LAB_TITLE="${LAB_TITLE:-teste-cli-bash}"
 
+# Valida se os binários jq e curl estão instalados
 command -v jq >/dev/null || { echo "Precisa de 'jq' instalado." >&2; exit 1; }
 command -v curl >/dev/null || { echo "Precisa de 'curl' instalado." >&2; exit 1; }
 
@@ -23,6 +25,7 @@ CML_USERNAME=$(grep '^CML_USERNAME=' "$ENV_FILE" | cut -d= -f2- | tr -d '\r')
 CML_PASSWORD=$(grep '^CML_PASSWORD=' "$ENV_FILE" | cut -d= -f2- | tr -d '\r')
 BASE_URL="${CML_URL%/}/api/v0"   # remove barra final antes de concatenar, senao vira //api/v0 (404)
 
+# 2. Autenticação: Obtém o token JWT (Bearer Token) da API do CML2
 echo "==> Autenticando em $BASE_URL ..."
 TOKEN=$(curl -sk -X POST "$BASE_URL/authenticate" \
   -H "Content-Type: application/json" \
@@ -32,6 +35,7 @@ TOKEN=$(curl -sk -X POST "$BASE_URL/authenticate" \
 AUTH_HEADER="Authorization: Bearer $TOKEN"
 echo "    OK"
 
+# 3. Verificação de Lab Existente: Impede a execução se um lab com o mesmo título já existir
 echo "==> Checando se ja existe um lab '$LAB_TITLE'..."
 EXISTING=$(curl -sk "$BASE_URL/labs?show_all=true&with_data=true" -H "$AUTH_HEADER" \
   | jq -r --arg t "$LAB_TITLE" '.[] | select(.lab_title == $t) | .id')
@@ -41,6 +45,7 @@ if [ -n "$EXISTING" ]; then
 fi
 echo "    OK, nenhum lab de teste pre-existente"
 
+# 4. Criação do Laboratório: Cria um novo laboratório vazio no CML2
 echo "==> Criando lab '$LAB_TITLE'..."
 LAB_ID=$(curl -sk -X POST "$BASE_URL/labs" -H "$AUTH_HEADER" -H "Content-Type: application/json" \
   -d "{\"title\": \"$LAB_TITLE\", \"description\": \"Lab de teste da Etapa 3 (linha de comando, trilha bash) -- remover apos confirmacao.\"}" \
@@ -51,6 +56,7 @@ declare -A NODE_ID
 declare -A NODE_X=( [R1]=-440 [R2]=-240 [R3]=-40 [R4]=-240 )
 declare -A NODE_Y=( [R1]=-120 [R2]=-320 [R3]=-120 [R4]=80 )
 
+# 5. Criação dos Nós: Cria os 4 roteadores nas coordenadas X/Y e injeta as configurações iniciais do gabarito
 echo "==> Criando os 4 nos (iol-xe) com as configs do gabarito..."
 for LABEL in R1 R2 R3 R4; do
   # --arg/--rawfile deixam o jq escapar a config corretamente para JSON (com \n etc.)
@@ -65,6 +71,7 @@ for LABEL in R1 R2 R3 R4; do
   echo "    $LABEL -> node_id=${NODE_ID[$LABEL]}"
 done
 
+# 6. Mapeamento de Interfaces: Consulta a API para mapear os IDs internos das interfaces Ethernet0/0 e Ethernet0/1
 echo "==> Lendo interfaces de cada no para mapear nome -> UUID..."
 declare -A IFACE
 for LABEL in R1 R2 R3 R4; do
@@ -74,6 +81,7 @@ for LABEL in R1 R2 R3 R4; do
   echo "    $LABEL: Eth0/0=${IFACE[${LABEL}_Ethernet0/0]} Eth0/1=${IFACE[${LABEL}_Ethernet0/1]}"
 done
 
+# 7. Criação de Links: Conecta as interfaces mapeadas para formar a topologia física em formato de losango
 echo "==> Criando os 4 links do losango..."
 create_link () {
   local node_a="$1" if_a="$2" node_b="$3" if_b="$4"
@@ -89,6 +97,7 @@ create_link R2 Ethernet0/1 R3 Ethernet0/1
 create_link R3 Ethernet0/0 R4 Ethernet0/0
 create_link R4 Ethernet0/1 R1 Ethernet0/1
 
+# 8. Inicialização e Monitoramento: Inicia o laboratório e aguarda até que todos os nós estejam no estado STARTED
 echo "==> Iniciando o lab..."
 curl -sk -X PUT "$BASE_URL/labs/$LAB_ID/start" -H "$AUTH_HEADER" -o /dev/null -w "    HTTP %{http_code}\n"
 
