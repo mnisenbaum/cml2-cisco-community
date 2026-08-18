@@ -1,0 +1,107 @@
+# Conectando o Claude Desktop (Windows) ao MCP do CML2
+
+Terceira via de acesso, além de Claude Code (WSL) e OpenCode (WSL): o **Claude Desktop** rodando nativamente no Windows, sem passar pelo WSL. Complementa [`07-mcp-wsl-conexao.md`](file:///home/moises/dev/cml2-cisco-community/07-mcp/07-mcp-wsl-conexao.md).
+
+## Diferença importante em relação aos outros dois métodos
+
+Claude Code e OpenCode, nos roteiros anteriores, rodam **dentro do WSL** — o processo `npx`/`mcp-remote` é disparado pelo Ubuntu do WSL. O Claude Desktop roda **nativamente no Windows**: quando ele spawna o processo `mcp-remote`, é o Windows quem executa, não o WSL. Isso significa:
+
+- Precisa de **Node.js instalado no Windows** (não basta o Node do WSL). Confirme num PowerShell/CMD comum (não no terminal WSL):
+  ```powershell
+  node -v
+  npx -v
+  ```
+  Se não tiver, instale o Node.js para Windows (https://nodejs.org).
+- A rota de rede até `10.208.192.230` parte do Windows diretamente — como o Windows é o host do Hyper-V, normalmente o acesso é ainda mais direto que a partir do WSL (que passa por uma camada de NAT). Vale testar antes com `curl` (ou `Invoke-WebRequest`) se tiver `curl` disponível no Windows, ou simplesmente seguir e ver se conecta.
+
+## Pré-requisitos
+
+- Claude Desktop instalado no Windows.
+- Node.js/npx instalados no Windows (nativo, fora do WSL).
+- Mesmas credenciais do CML2 (`admin` / `Cml2@123`) e mesmo IP (`10.208.192.230`) usados nos outros métodos.
+
+## Passo a passo
+
+### 1. Localizar o arquivo de configuração
+
+No Claude Desktop: menu **Claude** (ou ícone do app) → **Settings** → **Developer** → **Edit Config**. Isso abre (e cria, se não existir) o arquivo:
+
+```
+%APPDATA%\Claude\claude_desktop_config.json
+```
+
+### 2. Adicionar o servidor `cml2`
+
+Edite o arquivo para incluir o bloco `mcpServers`. Se o arquivo já tiver outros servidores, apenas acrescente a entrada `cml2` dentro do objeto existente — não substitua o arquivo inteiro.
+
+```json
+{
+  "mcpServers": {
+    "cml2": {
+      "command": "npx",
+      "args": ["-y", "mcp-remote", "https://10.208.192.230/mcp", "--header", "X-Authorization:${CML_AUTH_HEADER}"],
+      "env": {
+        "CML_AUTH_HEADER": "Basic YWRtaW46Q21sMkAxMjM=",
+        "NODE_TLS_REJECT_UNAUTHORIZED": "0"
+      }
+    }
+  }
+}
+```
+
+Mesma lógica dos outros dois métodos: certificado autoassinado do CML2 → ponte via `mcp-remote` → `NODE_TLS_REJECT_UNAUTHORIZED=0` para o processo aceitar o certificado → header `X-Authorization: Basic <base64 de admin:Cml2@123>`, substituído pelo próprio `mcp-remote` em tempo de execução a partir do `env`.
+
+### 3. Reiniciar o Claude Desktop por completo
+
+Não basta fechar a janela — o app costuma continuar rodando na bandeja do sistema (system tray). Clique com o botão direito no ícone na bandeja e escolha **Quit**/**Sair**, depois abra de novo. MCP só conecta na inicialização do processo.
+
+### 4. Confirmar a conexão
+
+Em **Settings → Developer**, a lista de servidores MCP deve mostrar `cml2` com status conectado (running). Também deve aparecer um indicador de ferramentas disponíveis (ícone de ferramentas/plug) perto da caixa de mensagem no chat, listando as tools do `cml2`.
+
+### 5. Testar
+
+Numa conversa nova:
+
+```
+Você tem acesso a um servidor MCP chamado 'cml2', que expõe a API do Cisco Modeling Labs. Liste os laboratórios existentes no controller e me diga quantos nós cada um tem e em que estado.
+```
+
+## Troubleshooting
+
+| Sintoma | Causa provável |
+|---|---|
+| `cml2` não aparece in Settings → Developer | Config salva no lugar errado, ou não reiniciou o app por completo (system tray) |
+| Erro de `npx`/`command not found` | Node.js não instalado nativamente no Windows (só no WSL, o que não conta aqui) |
+| `DEPTH_ZERO_SELF_SIGNED_CERT` ou falha de TLS | Falta `NODE_TLS_REJECT_UNAUTHORIZED: "0"` no bloco `env`, ou está usando outra forma de conexão que não passa pelo `mcp-remote` |
+| Conecta mas nenhuma tool aparece | Conferir se o header `X-Authorization` está sendo montado corretamente — testar as credenciais primeiro com `curl -sk https://10.208.192.230/api/v0/authenticate ...` a partir do próprio Windows (PowerShell) |
+
+## Resultado real do teste
+
+Configuração aplicada com sucesso: arquivo `claude_desktop_config.json` limpo, deixando apenas o bloco `mcpServers` com a entrada `cml2`. Após reiniciar o app, `cml2` apareceu conectado em **Settings → Desenvolvedor → Servidores MCP locais**.
+
+Teste feito com o prompt padrão, listando os laboratórios do controller:
+
+| Laboratório | Estado | Nós | Links |
+|---|---|---|---|
+| Lab at Sun 19:18 PM | STOPPED | 6 | 0 |
+| Lab Quadrado Routers | DEFINED_ON_CORE | 4 | 4 |
+| Lab basico OSPF | DEFINED_ON_CORE | 4 | 4 |
+| Lab basico OSPF - teste pyats | STOPPED | 4 | 4 |
+| teste opencode | DEFINED_ON_CORE | 4 | 4 |
+
+("teste opencode" é o lab criado durante a validação do método OpenCode, documentado em [`07-mcp-wsl-conexao.md`](file:///home/moises/dev/cml2-cisco-community/07-mcp/07-mcp-wsl-conexao.md).)
+
+## Nota: o Cowork herda a config do Claude Desktop
+
+O modo Cowork (o próprio ambiente usado para montar esta documentação) roda dentro do mesmo Claude Desktop. Como resultado, os servidores MCP locais configurados em `claude_desktop_config.json` — incluindo o `cml2` — ficam automaticamente disponíveis também dentro de uma sessão de Cowork, sem nenhuma configuração adicional. Ou seja: uma vez feito o registro pelo caminho deste roteiro, o `cml2` passa a valer tanto para o chat "normal" do Claude Desktop quanto para o Cowork.
+
+## Comparação rápida dos três métodos
+
+| Método | Onde roda | Config |
+|---|---|---|
+| Claude Code | WSL (Ubuntu) | `claude mcp add` → grava em `~/.claude.json` |
+| OpenCode | WSL (Ubuntu) | `opencode.json` na raiz do projeto |
+| Claude Desktop | Windows nativo | `claude_desktop_config.json` em `%APPDATA%\Claude\` |
+
+Em todos os três, o miolo é o mesmo: `mcp-remote` como ponte para contornar o certificado autoassinado, e o header `X-Authorization: Basic <base64>` fornecido pelo próprio CML2 na configuração pronta (`/api/v0/ai/mcp/configuration`).
