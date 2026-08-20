@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Como o Claude Desktop chega no CML2 via MCP (WSL + uv)</title>
+<style>
+  :root{
+    --bg:#0f1420;
+    --panel:#161d2e;
+    --border:#2a3350;
+    --text:#e8ecf7;
+    --muted:#9aa4c0;
+    --accent:#5b8cff;
+    --accent2:#38c99a;
+    --accent3:#f2b84b;
+    --accent4:#f2617a;
+    --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:linear-gradient(180deg,#0b0f18,#10182b 60%,#0b0f18);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    padding:32px 20px 64px;
+  }
+  h1{
+    text-align:center;
+    font-size:22px;
+    font-weight:700;
+    margin:0 0 6px;
+    letter-spacing:.2px;
+  }
+  .subtitle{
+    text-align:center;
+    color:var(--muted);
+    font-size:13.5px;
+    margin:0 0 34px;
+  }
+  .wrap{
+    max-width:1080px;
+    margin:0 auto;
+  }
+  .layers{
+    display:flex;
+    flex-direction:column;
+    gap:0;
+  }
+  .layer{
+    display:grid;
+    grid-template-columns:44px 1fr;
+    gap:14px;
+    align-items:stretch;
+  }
+  .badge{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-weight:700;
+    font-size:15px;
+    border-radius:10px;
+    color:#0b0f18;
+  }
+  .card{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:16px 18px;
+    position:relative;
+  }
+  .card h3{
+    margin:0 0 4px;
+    font-size:15px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .tag{
+    font-size:10.5px;
+    font-weight:700;
+    text-transform:uppercase;
+    letter-spacing:.06em;
+    padding:2px 8px;
+    border-radius:999px;
+    border:1px solid currentColor;
+  }
+  .card p{
+    margin:6px 0 0;
+    font-size:13px;
+    color:var(--muted);
+    line-height:1.55;
+  }
+  .card code{
+    font-family:var(--mono);
+    font-size:12px;
+    background:#0c1120;
+    border:1px solid var(--border);
+    color:#cfe0ff;
+    padding:1px 6px;
+    border-radius:5px;
+  }
+  .arrow-track{
+    display:flex;
+    justify-content:center;
+    padding:6px 0;
+  }
+  .arrow{
+    width:2px;
+    height:26px;
+    background:linear-gradient(var(--accent),transparent);
+    position:relative;
+  }
+  .arrow::after{
+    content:"";
+    position:absolute;
+    bottom:0;
+    left:50%;
+    transform:translateX(-50%);
+    width:0;height:0;
+    border-left:6px solid transparent;
+    border-right:6px solid transparent;
+    border-top:8px solid var(--accent);
+  }
+  .l1 .badge{background:var(--accent4);}
+  .l1 .card{border-color:#5c2a35;}
+  .l1 .tag{color:var(--accent4);}
+  .l2 .badge{background:var(--accent3);}
+  .l2 .card{border-color:#5c4a25;}
+  .l2 .tag{color:var(--accent3);}
+  .l3 .badge{background:var(--accent);}
+  .l3 .card{border-color:#28345c;}
+  .l3 .tag{color:var(--accent);}
+  .l4 .badge{background:#8b6bff;}
+  .l4 .card{border-color:#3a2f5c;}
+  .l4 .tag{color:#8b6bff;}
+  .l5 .badge{background:var(--accent2);}
+  .l5 .card{border-color:#1f4a3d;}
+  .l5 .tag{color:var(--accent2);}
+  .l6 .badge{background:#ffffff;}
+  .l6 .card{border-color:#3a4468;}
+  .l6 .tag{color:#cfd7f5;}
+
+  .split{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+    margin-top:10px;
+  }
+  .mini{
+    background:#0c1120;
+    border:1px solid var(--border);
+    border-radius:8px;
+    padding:8px 10px;
+    font-size:12px;
+    color:var(--muted);
+  }
+  .mini b{color:var(--text);}
+
+  .config-section{
+    margin-top:52px;
+  }
+  .config-title{
+    text-align:center;
+    font-size:17px;
+    font-weight:700;
+    margin-bottom:4px;
+  }
+  .config-sub{
+    text-align:center;
+    color:var(--muted);
+    font-size:13px;
+    margin-bottom:22px;
+  }
+  .config-grid{
+    display:grid;
+    grid-template-columns:1.1fr 1fr;
+    gap:18px;
+    align-items:start;
+  }
+  @media (max-width:760px){
+    .config-grid{grid-template-columns:1fr;}
+    .split{grid-template-columns:1fr;}
+  }
+  .jsonbox{
+    background:#0a0e19;
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:16px;
+    font-family:var(--mono);
+    font-size:12.3px;
+    line-height:1.7;
+    overflow-x:auto;
+    white-space:pre;
+    color:#c8d4f5;
+  }
+  .jsonbox .k{color:#8fb2ff;}
+  .jsonbox .s{color:#9fe6c0;}
+  .jsonbox .c{color:#5b6584;}
+  .jsonbox .hl1{background:rgba(91,140,255,.18); border-radius:4px;}
+  .jsonbox .hl2{background:rgba(242,184,75,.18); border-radius:4px;}
+  .jsonbox .hl3{background:rgba(56,201,154,.18); border-radius:4px;}
+  .jsonbox .hl4{background:rgba(242,97,122,.18); border-radius:4px;}
+
+  .explain{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+  }
+  .exp-item{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-left-width:4px;
+    border-radius:8px;
+    padding:10px 14px;
+    font-size:13px;
+    color:var(--muted);
+  }
+  .exp-item b{color:var(--text); font-family:var(--mono); font-size:12.5px;}
+  .exp-item.c1{border-left-color:var(--accent);}
+  .exp-item.c2{border-left-color:var(--accent3);}
+  .exp-item.c3{border-left-color:var(--accent2);}
+  .exp-item.c4{border-left-color:var(--accent4);}
+
+  .footer-note{
+    margin-top:40px;
+    text-align:center;
+    font-size:12px;
+    color:var(--muted);
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Do clique no chat até o roteador responder</h1>
+  <p class="subtitle">6 camadas atravessadas quando uma ferramenta <code>mcp__remote-devices__cml2-pyats__*</code> é chamada nesta sessão</p>
+
+  <div class="layers">
+
+    <div class="layer l1">
+      <div class="badge">1</div>
+      <div class="card">
+        <h3>Sessão Cowork (nuvem Anthropic) <span class="tag">sem rota até o CML2</span></h3>
+        <p>Onde esta conversa acontece. Container Linux isolado, atrás de allowlist restritiva — testado e confirmado: <b>nenhuma</b> rota até a rede do controller nem até a internet pública em geral. Chama a ferramenta pelo nome <code>mcp__remote-devices__cml2-pyats__send_cli_command</code>.</p>
+      </div>
+    </div>
+    <div class="arrow-track"><div class="arrow"></div></div>
+
+    <div class="layer l2">
+      <div class="badge">2</div>
+      <div class="card">
+        <h3>Ponte <code>remote-devices</code> <span class="tag">device bridge</span></h3>
+        <p>Canal que liga esta sessão ao seu computador, ativo porque o Claude Desktop está aberto na sua máquina. Repassa a chamada de ferramenta para lá e devolve a resposta — é só transporte, não conhece CML2 nem pyATS.</p>
+      </div>
+    </div>
+    <div class="arrow-track"><div class="arrow"></div></div>
+
+    <div class="layer l3">
+      <div class="badge">3</div>
+      <div class="card">
+        <h3>Claude Desktop (Windows) <span class="tag">lê claude_desktop_config.json</span></h3>
+        <p>No seu Windows. Na inicialização, leu a config e viu o servidor <code>cml2-pyats</code> registrado. Ele é quem sabe <b>como</b> lançar esse servidor: rodando o comando <code>wsl bash -lc "uvx cml-mcp[pyats]"</code> como subprocesso.</p>
+      </div>
+    </div>
+    <div class="arrow-track"><div class="arrow"></div></div>
+
+    <div class="layer l4">
+      <div class="badge">4</div>
+      <div class="card">
+        <h3><code>wsl</code> → shell de login no Ubuntu <span class="tag">bash -lc</span></h3>
+        <p>O Windows invoca o subsistema WSL2. O <code>bash -lc</code> (não só <code>bash -c</code>) é essencial: abre uma shell <b>de login</b>, que carrega <code>~/.bashrc</code>/<code>~/.profile</code> — é ali que o instalador do <code>uv</code> adicionou <code>~/.local/bin</code> ao <code>PATH</code>. Sem o <code>-l</code>, o comando seguinte falharia com <code>uvx: command not found</code>.</p>
+      </div>
+    </div>
+    <div class="arrow-track"><div class="arrow"></div></div>
+
+    <div class="layer l5">
+      <div class="badge">5</div>
+      <div class="card">
+        <h3><code>uvx cml-mcp[pyats]</code> dentro do WSL <span class="tag">uv baixa &amp; roda na hora</span></h3>
+        <p><code>uvx</code> (parte da ferramenta <b>uv</b>, da Astral) funciona como um <code>npx</code> para Python: baixa o pacote comunitário <a href="#" style="color:#8fb2ff;text-decoration:none;">cml-mcp[pyats]</a> do índice PyPI e roda na hora, sem instalação permanente. É <b>dentro do WSL</b> que isso roda porque só o WSL (não o container de nuvem) tem rota de rede real até o controller CML2.</p>
+        <div class="split">
+          <div class="mini"><b>Por quê no WSL, não no Windows nativo?</b><br>O guia registra que <code>uvx</code> não funciona bem direto no PowerShell — precisa do ambiente Linux.</div>
+          <div class="mini"><b>O que esse processo expõe</b><br>As ferramentas MCP que usamos: <code>get_cml_information</code>, <code>create_full_lab_topology</code>, <code>send_cli_command</code>, etc.</div>
+        </div>
+      </div>
+    </div>
+    <div class="arrow-track"><div class="arrow"></div></div>
+
+    <div class="layer l6">
+      <div class="badge">6</div>
+      <div class="card">
+        <h3>CML2 controller — API REST + pyATS/Unicon no console <span class="tag">destino final</span></h3>
+        <p>O servidor <code>cml-mcp[pyats]</code>, de dentro do WSL, fala com a <b>API REST</b> do CML2 (criar lab, nós, links, iniciar) usando <code>CML_USERNAME</code>/<code>CML_PASSWORD</code> — e, para comandos de CLI, abre uma sessão <b>pyATS/Unicon</b> no console de cada roteador, logando com <code>PYATS_USERNAME</code>/<code>PYATS_PASSWORD</code> e entrando em modo privilegiado com <code>PYATS_AUTH_PASS</code>.</p>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="config-section">
+    <div class="config-title">O que o arquivo de configuração informa</div>
+    <div class="config-sub"><code>%APPDATA%\Claude\claude_desktop_config.json</code> — é o único lugar onde as camadas 3, 4 e 5 estão descritas</div>
+
+    <div class="config-grid">
+      <div class="jsonbox">{
+  <span class="k">"mcpServers"</span>: {
+    <span class="k">"cml2-pyats"</span>: {
+<span class="hl1">      <span class="k">"command"</span>: <span class="s">"wsl"</span>,</span>
+<span class="hl1">      <span class="k">"args"</span>: [<span class="s">"bash"</span>, <span class="s">"-lc"</span>, <span class="s">"uvx cml-mcp[pyats]"</span>],</span>
+      <span class="k">"env"</span>: {
+<span class="hl2">        <span class="k">"CML_URL"</span>: <span class="s">"https://10.10.14.121"</span>,</span>
+<span class="hl2">        <span class="k">"CML_USERNAME"</span>: <span class="s">"admin"</span>,</span>
+<span class="hl2">        <span class="k">"CML_PASSWORD"</span>: <span class="s">"Cml2@123"</span>,</span>
+<span class="hl2">        <span class="k">"CML_VERIFY_SSL"</span>: <span class="s">"false"</span>,</span>
+<span class="hl3">        <span class="k">"PYATS_USERNAME"</span>: <span class="s">"cisco"</span>,</span>
+<span class="hl3">        <span class="k">"PYATS_PASSWORD"</span>: <span class="s">"cisco"</span>,</span>
+<span class="hl3">        <span class="k">"PYATS_AUTH_PASS"</span>: <span class="s">"class"</span>,</span>
+<span class="hl4">        <span class="k">"WSLENV"</span>: <span class="s">"CML_URL/u:CML_USERNAME/u:...</span>
+<span class="s">                    ...:PYATS_AUTH_PASS/u"</span></span>
+      }
+    }
+  }
+}</div>
+
+      <div class="explain">
+        <div class="exp-item c1"><b>command + args</b> — camadas 3→4→5. Diz ao Claude Desktop para não rodar o servidor MCP direto no Windows, e sim delegar pro WSL, entrando numa shell de <i>login</i> (<code>-lc</code>) antes de chamar <code>uvx</code>. Sem <code>-l</code>, o PATH do <code>uv</code> não carrega.</div>
+        <div class="exp-item c2"><b>CML_URL / CML_USERNAME / CML_PASSWORD / CML_VERIFY_SSL</b> — credencial do <b>controller</b> (API REST). É com isso que o servidor autentica em <code>/api/v0/authenticate</code> e cria labs/nós/links. <code>VERIFY_SSL=false</code> porque o certificado do CML2 é autoassinado.</div>
+        <div class="exp-item c3"><b>PYATS_USERNAME / PYATS_PASSWORD / PYATS_AUTH_PASS</b> — credencial <b>dentro dos roteadores</b> (diferente da do controller!). É o cisco/cisco/class configurado no startup-config de cada nó — usado pelo pyATS/Unicon para logar no console e entrar em modo privilegiado quando rodo <code>send_cli_command</code>.</div>
+        <div class="exp-item c4"><b>WSLENV</b> — a ponte de variáveis Windows→WSL. O Windows não empurra <code>env</code> para dentro do WSL automaticamente; cada variável precisa estar listada aqui (sufixo <code>/u</code>) ou chega vazia lá dentro — sintoma clássico: <code>CML_URL not set</code> mesmo com o valor certo no <code>env</code>.</div>
+      </div>
+    </div>
+  </div>
+
+  <p class="footer-note">Baseado em <code>07-mcp/cml2-mcp-pyats-claude-desktop-guide-final.md</code> do próprio repositório do curso — configuração testada e confirmada nesta máquina.</p>
+</div>
+</body>
+</html>
